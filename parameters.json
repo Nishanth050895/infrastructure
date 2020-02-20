@@ -1,0 +1,36 @@
+[
+  {
+    "ParameterKey": "VpcCidrParam",
+    "ParameterValue": "192.168.102.0/24"
+  },
+  {
+    "ParameterKey": "Public1SubnetBlock",
+    "ParameterValue": "192.168.102.0/28"
+  },
+  {
+    "ParameterKey": "Public2SubnetBlock",
+    "ParameterValue": "192.168.102.16/28"
+  },
+  {
+    "ParameterKey": "Public3SubnetBlock",
+    "ParameterValue": "192.168.102.32/28"
+  },
+  {
+    "ParameterKey": "Subnet1RegionParameter",
+    "ParameterValue": "us-east-1a"
+  },
+  {
+    "ParameterKey": "Subnet2RegionParameter",
+    "ParameterValue": "us-east-1b"
+  },
+  {
+    "ParameterKey": "Subnet3RegionParameter",
+    "ParameterValue": "us-east-1c"
+  },
+  {
+    "ParameterKey": "VpcNameParameter",
+    "ParameterValue": "VPC-Nishanth"
+  }
+]
+
+
