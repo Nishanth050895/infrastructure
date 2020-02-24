@@ -30,6 +30,18 @@
   {
     "ParameterKey": "VpcNameParameter",
     "ParameterValue": "VPC-Nishanth"
+  },
+  {
+    "ParameterKey": "DBName",
+    "ParameterValue": "acc_data"
+  },
+  {
+    "ParameterKey": "DBUsername",
+    "ParameterValue": "root"
+  },
+  {
+    "ParameterKey": "DBPassword",
+    "ParameterValue": "Comp23329002"
   }
 ]
 
