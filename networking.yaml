@@ -59,18 +59,18 @@ Parameters:
     Description: Enter VPC name.
 
   DBName:
-    Default: "csye6225"
+    Default: "acc_data"
     Description: "This is my database name"
     Type: "String"
 
   DBUsername:
-    Default: "csye6225master"
+    Default: "root"
     Description: "The database admin account username"
     Type: "String"
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
 
   DBPassword:
-    Default: "csye6225password"
+    Default: "Comp23329002"
     Description: "The database admin account password"
     Type: "String"
     AllowedPattern: "[a-zA-Z0-9]*"
@@ -243,7 +243,7 @@ Resources:
       MasterUsername: !Ref DBUsername #parameter
       MasterUserPassword: !Ref DBPassword
       DBSubnetGroupName: !Ref myDBSubnetGroup
-      DBInstanceIdentifier: "csye6225-spring2020-8"
+      DBInstanceIdentifier: "csye6225-spring2020"
       VPCSecurityGroups:
         - !Ref RDSSec
       PubliclyAccessible: "false"
@@ -280,7 +280,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-                - 's3.amazonaws.com'
+                - 'ec2.amazonaws.com'
             Action: 'sts:AssumeRole'
 
 
@@ -295,13 +295,17 @@ Resources:
         Statement:
           - Effect: "Allow"
             Action:
-              - "s3:DeleteObject"
-              - "s3:GetObject"
-              - "s3:PutObject"
-              - "s3:ListMultipartUploadParts"
+              - "s3:*"
             Resource:
-              - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
-              - !Join ['', ['arn:aws:s3:::', !Ref Bucket, '/*']]
+              - !Join ['', ['arn:aws:s3:::*']]
+      Roles:
+        - !Ref EC2Role
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: DjangoEC2InstanceProfile
+      Path: "/"
       Roles:
         - !Ref EC2Role
 
@@ -310,9 +314,10 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn: AttachGateway
     Properties:
-      ImageId: ami-0b77f2b833a0bcfcf #parameter??dynamic-entry??
+      ImageId: ami-00709082e30c244e5 #parameter??dynamic-entry??
       InstanceType: t2.micro #parameter
       KeyName: aws_nishanth #parameter
+      IamInstanceProfile: !Ref InstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: "true"
           DeviceIndex: "0"
@@ -341,4 +346,7 @@ Resources:
               - "\"\n' >> .bashrc"
               - "echo $'export S3_BUCKET_NAME=\""
               - !Ref Bucket
+              - "\"\n' >> .bashrc"
+              - "echo $'export DB_NAME=\""
+              - !Ref DBName
               - "\"\n' >> .bashrc"
