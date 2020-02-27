@@ -58,6 +58,18 @@
   {
     "ParameterKey": "MySSHKeyName",
     "ParameterValue": "aws_nishanth"
+  },
+  {
+    "ParameterKey": "RDSPublicAccess",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "RDSInstanceTypeParameter",
+    "ParameterValue": "db.t3.micro"
+  },
+    {
+    "ParameterKey": "RDSInstanceSize",
+    "ParameterValue": "20"
   }
 ]
 

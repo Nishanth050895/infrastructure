@@ -96,6 +96,21 @@ Parameters:
     Type: String
     Description: Enter DBInstanceIdentifier name.
 
+  RDSPublicAccess:
+    Type: String
+    Description: Enter RDSPublicAccess boolean value.
+
+  RDSInstanceTypeParameter:
+    Type: String
+    Default: db.t3.micro
+    AllowedValues:
+      - db.t3.micro
+      - db.t2.micro
+    Description: Enter db.t3.micro.
+
+  RDSInstanceSize:
+    Type: String
+    Description: Enter RDSInstanceSize value.
 
 Resources:
   # First, a VPC:
@@ -257,8 +272,8 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBName: !Ref DBName
-      AllocatedStorage: '5'
-      DBInstanceClass: db.t3.micro
+      AllocatedStorage: !Ref RDSInstanceSize #
+      DBInstanceClass: !Ref RDSInstanceTypeParameter
       Engine: MySQL
       EngineVersion: 5.6
       MasterUsername: !Ref DBUsername
@@ -267,7 +282,7 @@ Resources:
       DBInstanceIdentifier: !Ref MyDBInstanceIdentifier
       VPCSecurityGroups:
         - !Ref RDSSec
-      PubliclyAccessible: "false"
+      PubliclyAccessible: !Ref RDSPublicAccess
       MultiAZ: "false"
       Port: "3306"
       StorageType: gp2
