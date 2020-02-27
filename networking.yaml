@@ -75,6 +75,27 @@ Parameters:
     Type: "String"
     AllowedPattern: "[a-zA-Z0-9]*"
 
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+  CustomAMI:
+    Type: String
+    Description: Enter AMI name.
+
+  MyDBInstanceIdentifier:
+    Type: String
+    Description: Enter DBInstanceIdentifier name.
+
+  MySSHKeyName:
+    Type: String
+    Description: Enter DBInstanceIdentifier name.
+
 
 Resources:
   # First, a VPC:
@@ -240,10 +261,10 @@ Resources:
       DBInstanceClass: db.t3.micro
       Engine: MySQL
       EngineVersion: 5.6
-      MasterUsername: !Ref DBUsername #parameter
+      MasterUsername: !Ref DBUsername
       MasterUserPassword: !Ref DBPassword
       DBSubnetGroupName: !Ref myDBSubnetGroup
-      DBInstanceIdentifier: "csye6225-spring2020"
+      DBInstanceIdentifier: !Ref MyDBInstanceIdentifier
       VPCSecurityGroups:
         - !Ref RDSSec
       PubliclyAccessible: "false"
@@ -256,8 +277,14 @@ Resources:
 
   Bucket: # cannot be deleted with data
     Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete
     Properties:
       AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -295,9 +322,17 @@ Resources:
         Statement:
           - Effect: "Allow"
             Action:
-              - "s3:*"
+              - s3:DeleteObject
+              - s3:DeleteObjectAcl
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:ListObject
+              - s3:ListObjectAcl
+              - s3:PutObject
+              - s3:PutObjectAcl
             Resource:
-              - !Join ['', ['arn:aws:s3:::*']]
+              - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
+              - !Join ['', ['arn:aws:s3:::', !Ref Bucket, '/*']]
       Roles:
         - !Ref EC2Role
 
@@ -314,9 +349,9 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn: AttachGateway
     Properties:
-      ImageId: ami-00709082e30c244e5 #parameter??dynamic-entry??
-      InstanceType: t2.micro #parameter
-      KeyName: aws_nishanth #parameter
+      ImageId: !Ref CustomAMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: !Ref MySSHKeyName
       IamInstanceProfile: !Ref InstanceProfile
       NetworkInterfaces:
         - AssociatePublicIpAddress: "true"
@@ -334,6 +369,9 @@ Resources:
             - ""
             - - "#!/bin/bash\n"
               - "cd /home/ubuntu\n"
+              - "sudo apt-get -y install libmysqlclient-dev\n"
+              - "sudo pip3 install mysqlclient\n"
+              - "sudo pip3 install django_mysql\n"
               - "touch .bashrc\n"
               - "echo $'export DB_HOST=\""
               - !GetAtt MyDB.Endpoint.Address

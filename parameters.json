@@ -42,6 +42,22 @@
   {
     "ParameterKey": "DBPassword",
     "ParameterValue": "Comp23329002"
+  },
+  {
+    "ParameterKey": "InstanceTypeParameter",
+    "ParameterValue": "t2.micro"
+  },
+  {
+    "ParameterKey": "CustomAMI",
+    "ParameterValue": "ami-019f1399c8a501f5e"
+  },
+  {
+    "ParameterKey": "MyDBInstanceIdentifier",
+    "ParameterValue": "csye6225-spring2020"
+  },
+  {
+    "ParameterKey": "MySSHKeyName",
+    "ParameterValue": "aws_nishanth"
   }
 ]
 
