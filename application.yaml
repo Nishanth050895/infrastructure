@@ -112,6 +112,18 @@ Parameters:
     Type: String
     Description: Enter RDSInstanceSize value.
 
+  EC2Name:
+    Type: String
+    Default: "csye6225-EC2-Key-Name"
+
+  EC2Value:
+    Type: String
+    Default: "csye6225-EC2"
+
+  S3CodeBucket:
+    Type: String
+    Description: Enter S3 Bucket name where we store our code.
+
 Resources:
   # First, a VPC:
   VPC:
@@ -351,6 +363,157 @@ Resources:
       Roles:
         - !Ref EC2Role
 
+##############################################
+
+#  CodeDeployEC2ServiceRole: #ec2 instance profile
+#    Type: 'AWS::IAM::Role'
+#    Properties:
+#      RoleName: CodeDeployEC2ServiceRole
+#      AssumeRolePolicyDocument:
+#        Version: '2012-10-17'
+#        Statement:
+#          - Effect: Allow
+#            Principal:
+#              Service:
+#                - 'ec2.amazonaws.com'
+#            Action: 'sts:AssumeRole'
+
+  CodeDeployServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CodeDeployServiceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'codedeploy.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+  AWSCodeDeployRole:
+    DependsOn:
+      - CodeDeployServiceRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: AWSCodeDeployRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - autoscaling:CompleteLifecycleAction
+              - autoscaling:DeleteLifecycleHook
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribeLifecycleHooks
+              - autoscaling:PutLifecycleHook
+              - autoscaling:RecordLifecycleActionHeartbeat
+              - autoscaling:CreateAutoScalingGroup
+              - autoscaling:UpdateAutoScalingGroup
+              - autoscaling:EnableMetricsCollection
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribePolicies
+              - autoscaling:DescribeScheduledActions
+              - autoscaling:DescribeNotificationConfigurations
+              - autoscaling:DescribeLifecycleHooks
+              - autoscaling:SuspendProcesses
+              - autoscaling:ResumeProcesses
+              - autoscaling:AttachLoadBalancers
+              - autoscaling:PutScalingPolicy
+              - autoscaling:PutScheduledUpdateGroupAction
+              - autoscaling:PutNotificationConfiguration
+              - autoscaling:PutLifecycleHook
+              - autoscaling:DescribeScalingActivities
+              - autoscaling:DeleteAutoScalingGroup
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceStatus
+              - ec2:TerminateInstances
+              - tag:GetResources
+              - sns:Publish
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:PutMetricAlarm
+              - elasticloadbalancing:DescribeLoadBalancers
+              - elasticloadbalancing:DescribeInstanceHealth
+              - elasticloadbalancing:RegisterInstancesWithLoadBalancer
+              - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeTargetHealth
+              - elasticloadbalancing:RegisterTargets
+              - elasticloadbalancing:DeregisterTargets
+            Resource:
+              - "*"
+      Roles:
+        - !Ref CodeDeployServiceRole
+
+  CodeDeployEC2S3:
+    DependsOn:
+      - EC2Role
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CodeDeployEC2S3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:Get*
+              - s3:List*
+            Resource:
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]  #which resource change bucket name
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]   #which resource change bucket name
+      Roles:
+        - !Ref EC2Role
+
+  CircleCIUploadToS3:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CircleCIUploadToS3
+      Users:
+        - circleci
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:Get*
+              - s3:List*
+              - s3:PutObject
+            Resource:
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]  #which resource change bucket name
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]   #which resource change bucket name
+
+
+  CircleCICodeDeploy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CircleCICodeDeploy
+      Users:
+        - circleci
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - codedeploy:RegisterApplicationRevision
+              - codedeploy:GetApplicationRevision
+            Resource:
+              - arn:aws:codedeploy:us-east-1:537581868274:application:csye6225-webapp
+          - Effect: "Allow"
+            Action:
+              - codedeploy:CreateDeployment
+              - codedeploy:GetDeployment
+            Resource:
+              - "*"
+          - Effect: "Allow"
+            Action:
+              - codedeploy:GetDeploymentConfig
+            Resource:
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.OneAtATime
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.HalfAtATime
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.AllAtOnce
+
+###############################################
+
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -376,8 +539,8 @@ Resources:
           GroupSet:
             - !Ref WebappSec
       Tags:
-        - Key: Name
-          Value: myInstance
+        - Key: !Ref EC2Name
+          Value: !Ref EC2Value
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -403,3 +566,31 @@ Resources:
               - "echo $'export DB_NAME=\""
               - !Ref DBName
               - "\"\n' >> .bashrc"
+
+  #######################
+
+  CodeDeployApplication:
+    Type: "AWS::CodeDeploy::Application"
+    Properties:
+      ApplicationName: "csye6225-webapp"
+      ComputePlatform: "Server"
+
+
+  CodeDeployApplicationGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      AutoRollbackConfiguration:
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      DeploymentGroupName: csye6225-webapp-deployment
+      DeploymentStyle:
+        DeploymentType: IN_PLACE
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+      Ec2TagFilters:
+        - Key: !Ref EC2Name
+          Value: !Ref EC2Value
+          Type: KEY_AND_VALUE
+      ServiceRoleArn:
+        Fn::GetAtt: [ CodeDeployServiceRole, Arn ]

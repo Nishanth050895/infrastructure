@@ -49,11 +49,11 @@
   },
   {
     "ParameterKey": "CustomAMI",
-    "ParameterValue": "ami-0a37574f7b94b41fd"
+    "ParameterValue": "ami-03b1f3f108f28b670"
   },
   {
     "ParameterKey": "MyDBInstanceIdentifier",
-    "ParameterValue": "csye6225-spring2020-21"
+    "ParameterValue": "csye6225-spring2020-29"
   },
   {
     "ParameterKey": "MySSHKeyName",
@@ -67,9 +67,13 @@
     "ParameterKey": "RDSInstanceTypeParameter",
     "ParameterValue": "db.t3.micro"
   },
-    {
+  {
     "ParameterKey": "RDSInstanceSize",
     "ParameterValue": "20"
+  },
+  {
+    "ParameterKey": "S3CodeBucket",
+    "ParameterValue": "codedeploy.nishanthmanjunatha.com"
   }
 ]
 
