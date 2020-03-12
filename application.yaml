@@ -44,6 +44,9 @@ Parameters:
       - us-east-1a
       - us-east-1b
       - us-east-1c
+      - us-east-2a
+      - us-east-2b
+      - us-east-2c
     Description: Enter AWS region for subnets.
 
   Subnet3RegionParameter: 
@@ -52,6 +55,9 @@ Parameters:
       - us-east-1a
       - us-east-1b
       - us-east-1c
+      - us-east-2a
+      - us-east-2b
+      - us-east-2c
     Description: Enter AWS region for subnets.
 
   VpcNameParameter: 
@@ -112,8 +118,36 @@ Parameters:
     Type: String
     Description: Enter RDSInstanceSize value.
 
+  EC2Name:
+    Type: String
+    Default: "csye6225-EC2-Key-Name"
+
+  EC2Value:
+    Type: String
+    Default: "csye6225-EC2"
+
+  S3CodeBucket:
+    Type: String
+    Description: Enter S3 Bucket name where we store our code.
+
+  AccountId:
+    Type: String
+    Description: AWS account id.
+
+  ResourceRegion:
+    Type: String
+    Description: CodeDeploy region.
+
+  AWSCodeDeployApplicationName:
+    Type: String
+    Description: AWS CodeDeployApplicationName.
+
+  AWSDeploymentGroupName:
+    Type: String
+    Description: DeploymentGroupName.
+
 Resources:
-  # First, a VPC:
+  #VPC:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -204,8 +238,6 @@ Resources:
       SubnetId: !Ref PublicSubnet3
       RouteTableId: !Ref PublicRouteTable
 
-
-###########################
 
   WebappSec:
     Type: 'AWS::EC2::SecurityGroup'
@@ -351,6 +383,145 @@ Resources:
       Roles:
         - !Ref EC2Role
 
+
+  CodeDeployServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CodeDeployServiceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'codedeploy.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+
+  AWSCodeDeployRole:
+    DependsOn:
+      - CodeDeployServiceRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: AWSCodeDeployRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - autoscaling:CompleteLifecycleAction
+              - autoscaling:DeleteLifecycleHook
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribeLifecycleHooks
+              - autoscaling:PutLifecycleHook
+              - autoscaling:RecordLifecycleActionHeartbeat
+              - autoscaling:CreateAutoScalingGroup
+              - autoscaling:UpdateAutoScalingGroup
+              - autoscaling:EnableMetricsCollection
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribePolicies
+              - autoscaling:DescribeScheduledActions
+              - autoscaling:DescribeNotificationConfigurations
+              - autoscaling:DescribeLifecycleHooks
+              - autoscaling:SuspendProcesses
+              - autoscaling:ResumeProcesses
+              - autoscaling:AttachLoadBalancers
+              - autoscaling:PutScalingPolicy
+              - autoscaling:PutScheduledUpdateGroupAction
+              - autoscaling:PutNotificationConfiguration
+              - autoscaling:PutLifecycleHook
+              - autoscaling:DescribeScalingActivities
+              - autoscaling:DeleteAutoScalingGroup
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceStatus
+              - ec2:TerminateInstances
+              - tag:GetResources
+              - sns:Publish
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:PutMetricAlarm
+              - elasticloadbalancing:DescribeLoadBalancers
+              - elasticloadbalancing:DescribeInstanceHealth
+              - elasticloadbalancing:RegisterInstancesWithLoadBalancer
+              - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeTargetHealth
+              - elasticloadbalancing:RegisterTargets
+              - elasticloadbalancing:DeregisterTargets
+            Resource:
+              - "*"
+      Roles:
+        - !Ref CodeDeployServiceRole
+
+
+  CodeDeployEC2S3:
+    DependsOn:
+      - EC2Role
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CodeDeployEC2S3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:Get*
+              - s3:List*
+            Resource:
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]
+      Roles:
+        - !Ref EC2Role
+
+
+  CircleCIUploadToS3:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CircleCIUploadToS3
+      Users:
+        - circleci
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:Get*
+              - s3:List*
+              - s3:PutObject
+            Resource:
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]  #which resource change bucket name
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]   #which resource change bucket name
+
+
+  CircleCICodeDeploy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CircleCICodeDeploy
+      Users:
+        - circleci
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - codedeploy:RegisterApplicationRevision
+              - codedeploy:GetApplicationRevision
+            Resource:
+              - arn:aws:codedeploy:us-east-1:537581868274:application:csye6225-webapp
+          - Effect: "Allow"
+            Action:
+              - codedeploy:CreateDeployment
+              - codedeploy:GetDeployment
+            Resource:
+              - "*"
+          - Effect: "Allow"
+            Action:
+              - codedeploy:GetDeploymentConfig
+            Resource:
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.OneAtATime
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.HalfAtATime
+              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.AllAtOnce
+
+
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -376,30 +547,56 @@ Resources:
           GroupSet:
             - !Ref WebappSec
       Tags:
-        - Key: Name
-          Value: myInstance
+        - Key: !Ref EC2Name
+          Value: !Ref EC2Value
       UserData:
         Fn::Base64:
           Fn::Join:
             - ""
             - - "#!/bin/bash\n"
-              - "cd /home/ubuntu\n"
+              - "cd /etc/\n"
               - "sudo apt-get -y install libmysqlclient-dev\n"
               - "sudo pip3 install mysqlclient\n"
               - "sudo pip3 install django_mysql\n"
-              - "touch .bashrc\n"
               - "echo $'export DB_HOST=\""
               - !GetAtt MyDB.Endpoint.Address
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_USERNAME=\""
               - !Ref DBUsername
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_PASSWORD=\""
               - !Ref DBPassword
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export S3_BUCKET_NAME=\""
               - !Ref Bucket
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_NAME=\""
               - !Ref DBName
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
+
+
+  CodeDeployApplication:
+    Type: "AWS::CodeDeploy::Application"
+    Properties:
+      ApplicationName: !Ref AWSCodeDeployApplicationName
+      ComputePlatform: "Server"
+
+
+  CodeDeployApplicationGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      AutoRollbackConfiguration:
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      DeploymentGroupName: !Ref AWSDeploymentGroupName
+      DeploymentStyle:
+        DeploymentType: IN_PLACE
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+      Ec2TagFilters:
+        - Key: !Ref EC2Name
+          Value: !Ref EC2Value
+          Type: KEY_AND_VALUE
+      ServiceRoleArn:
+        Fn::GetAtt: [ CodeDeployServiceRole, Arn ]
