@@ -506,7 +506,7 @@ Resources:
               - codedeploy:RegisterApplicationRevision
               - codedeploy:GetApplicationRevision
             Resource:
-              - arn:aws:codedeploy:us-east-1:537581868274:application:csye6225-webapp
+              - !Sub 'arn:aws:codedeploy:${ResourceRegion}:${AccountId}:application:${AWSCodeDeployApplicationName}'
           - Effect: "Allow"
             Action:
               - codedeploy:CreateDeployment
@@ -517,9 +517,9 @@ Resources:
             Action:
               - codedeploy:GetDeploymentConfig
             Resource:
-              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.OneAtATime
-              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.HalfAtATime
-              - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.AllAtOnce
+              - !Sub 'arn:aws:codedeploy:${ResourceRegion}:${AccountId}:deploymentconfig:CodeDeployDefault.OneAtATime'
+              - !Sub 'arn:aws:codedeploy:${ResourceRegion}:${AccountId}:deploymentconfig:CodeDeployDefault.HalfAtATime'
+              - !Sub 'arn:aws:codedeploy:${ResourceRegion}:${AccountId}:deploymentconfig:CodeDeployDefault.AllAtOnce'
 
 
   InstanceProfile:
@@ -558,6 +558,7 @@ Resources:
               - "sudo apt-get -y install libmysqlclient-dev\n"
               - "sudo pip3 install mysqlclient\n"
               - "sudo pip3 install django_mysql\n"
+              - "sudo pip3 install pymysql\n"
               - "echo $'export DB_HOST=\""
               - !GetAtt MyDB.Endpoint.Address
               - "\"\n' >> environment"
