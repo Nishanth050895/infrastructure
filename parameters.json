@@ -53,7 +53,7 @@
   },
   {
     "ParameterKey": "MyDBInstanceIdentifier",
-    "ParameterValue": "csye6225-spring2020-29"
+    "ParameterValue": "csye6225-spring2020-2"
   },
   {
     "ParameterKey": "MySSHKeyName",
@@ -74,6 +74,30 @@
   {
     "ParameterKey": "S3CodeBucket",
     "ParameterValue": "codedeploy.nishanthmanjunatha.com"
+  },
+  {
+    "ParameterKey": "AccountId",
+    "ParameterValue": "537581868274"
+  },
+  {
+    "ParameterKey": "ResourceRegion",
+    "ParameterValue": "us-east-1"
+  },
+  {
+    "ParameterKey": "AWSCodeDeployApplicationName",
+    "ParameterValue": "csye6225-webapp"
+  },
+  {
+    "ParameterKey": "AWSDeploymentGroupName",
+    "ParameterValue": "csye6225-webapp-deployment"
+  },
+  {
+    "ParameterKey": "EC2Name",
+    "ParameterValue": "csye6225-EC2-Key-Name"
+  },
+  {
+    "ParameterKey": "EC2Value",
+    "ParameterValue": "csye6225-EC2"
   }
 ]
 

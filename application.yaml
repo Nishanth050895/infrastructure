@@ -44,6 +44,9 @@ Parameters:
       - us-east-1a
       - us-east-1b
       - us-east-1c
+      - us-east-2a
+      - us-east-2b
+      - us-east-2c
     Description: Enter AWS region for subnets.
 
   Subnet3RegionParameter: 
@@ -52,6 +55,9 @@ Parameters:
       - us-east-1a
       - us-east-1b
       - us-east-1c
+      - us-east-2a
+      - us-east-2b
+      - us-east-2c
     Description: Enter AWS region for subnets.
 
   VpcNameParameter: 
@@ -124,8 +130,24 @@ Parameters:
     Type: String
     Description: Enter S3 Bucket name where we store our code.
 
+  AccountId:
+    Type: String
+    Description: AWS account id.
+
+  ResourceRegion:
+    Type: String
+    Description: CodeDeploy region.
+
+  AWSCodeDeployApplicationName:
+    Type: String
+    Description: AWS CodeDeployApplicationName.
+
+  AWSDeploymentGroupName:
+    Type: String
+    Description: DeploymentGroupName.
+
 Resources:
-  # First, a VPC:
+  #VPC:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -216,8 +238,6 @@ Resources:
       SubnetId: !Ref PublicSubnet3
       RouteTableId: !Ref PublicRouteTable
 
-
-###########################
 
   WebappSec:
     Type: 'AWS::EC2::SecurityGroup'
@@ -363,20 +383,6 @@ Resources:
       Roles:
         - !Ref EC2Role
 
-##############################################
-
-#  CodeDeployEC2ServiceRole: #ec2 instance profile
-#    Type: 'AWS::IAM::Role'
-#    Properties:
-#      RoleName: CodeDeployEC2ServiceRole
-#      AssumeRolePolicyDocument:
-#        Version: '2012-10-17'
-#        Statement:
-#          - Effect: Allow
-#            Principal:
-#              Service:
-#                - 'ec2.amazonaws.com'
-#            Action: 'sts:AssumeRole'
 
   CodeDeployServiceRole:
     Type: 'AWS::IAM::Role'
@@ -390,6 +396,7 @@ Resources:
               Service:
                 - 'codedeploy.amazonaws.com'
             Action: 'sts:AssumeRole'
+
 
   AWSCodeDeployRole:
     DependsOn:
@@ -445,6 +452,7 @@ Resources:
       Roles:
         - !Ref CodeDeployServiceRole
 
+
   CodeDeployEC2S3:
     DependsOn:
       - EC2Role
@@ -459,10 +467,11 @@ Resources:
               - s3:Get*
               - s3:List*
             Resource:
-              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]  #which resource change bucket name
-              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]   #which resource change bucket name
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket]]
+              - !Join ['', ['arn:aws:s3:::', !Ref S3CodeBucket, '/*']]
       Roles:
         - !Ref EC2Role
+
 
   CircleCIUploadToS3:
     Type: "AWS::IAM::Policy"
@@ -512,7 +521,6 @@ Resources:
               - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.HalfAtATime
               - arn:aws:codedeploy:us-east-1:537581868274:deploymentconfig:CodeDeployDefault.AllAtOnce
 
-###############################################
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -546,33 +554,31 @@ Resources:
           Fn::Join:
             - ""
             - - "#!/bin/bash\n"
-              - "cd /home/ubuntu\n"
+              - "cd /etc/\n"
               - "sudo apt-get -y install libmysqlclient-dev\n"
               - "sudo pip3 install mysqlclient\n"
               - "sudo pip3 install django_mysql\n"
-              - "touch .bashrc\n"
               - "echo $'export DB_HOST=\""
               - !GetAtt MyDB.Endpoint.Address
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_USERNAME=\""
               - !Ref DBUsername
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_PASSWORD=\""
               - !Ref DBPassword
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export S3_BUCKET_NAME=\""
               - !Ref Bucket
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
               - "echo $'export DB_NAME=\""
               - !Ref DBName
-              - "\"\n' >> .bashrc"
+              - "\"\n' >> environment"
 
-  #######################
 
   CodeDeployApplication:
     Type: "AWS::CodeDeploy::Application"
     Properties:
-      ApplicationName: "csye6225-webapp"
+      ApplicationName: !Ref AWSCodeDeployApplicationName
       ComputePlatform: "Server"
 
 
@@ -584,7 +590,7 @@ Resources:
         Events:
           - DEPLOYMENT_FAILURE
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
-      DeploymentGroupName: csye6225-webapp-deployment
+      DeploymentGroupName: !Ref AWSDeploymentGroupName
       DeploymentStyle:
         DeploymentType: IN_PLACE
         DeploymentOption: WITHOUT_TRAFFIC_CONTROL
