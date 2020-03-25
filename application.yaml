@@ -146,6 +146,18 @@ Parameters:
     Type: String
     Description: DeploymentGroupName.
 
+  keyName:
+    Default: ctkey
+    Type: String
+
+  DomainNameValue:
+    Type: String
+    Default: "dev.nishanthmanjunatha.com"
+
+  HostedZoneIdValue:
+    Type: String
+    Default: "ZLC6JHKHIYREV"
+
 Resources:
   #VPC:
   VPC:
@@ -534,24 +546,97 @@ Resources:
         - !Ref EC2Role
 
 
-  DjangoEC2Instance:
-    Type: AWS::EC2::Instance
-    DependsOn: AttachGateway
+#  DjangoEC2Instance:
+#    Type: AWS::EC2::Instance
+#    DependsOn: AttachGateway
+#    Properties:
+#      ImageId: !Ref CustomAMI
+#      InstanceType: !Ref InstanceTypeParameter
+#      KeyName: !Ref MySSHKeyName
+#      IamInstanceProfile: !Ref InstanceProfile
+#      NetworkInterfaces:
+#        - AssociatePublicIpAddress: "true"
+#          DeviceIndex: "0"
+#          SubnetId: !Ref PublicSubnet3
+#          DeleteOnTermination: true
+#          GroupSet:
+#            - !Ref WebappSec
+#      Tags:
+#        - Key: !Ref EC2Name
+#          Value: !Ref EC2Value
+#      UserData:
+#        Fn::Base64:
+#          Fn::Join:
+#            - ""
+#            - - "#!/bin/bash\n"
+#              - "cd /etc/\n"
+#              - "sudo apt-get -y install libmysqlclient-dev\n"
+#              - "sudo pip3 install mysqlclient\n"
+#              - "sudo pip3 install django_mysql\n"
+#              - "sudo pip3 install pymysql\n"
+#              - "echo $'export DB_HOST=\""
+#              - !GetAtt MyDB.Endpoint.Address
+#              - "\"\n' >> environment"
+#              - "echo $'export DB_USERNAME=\""
+#              - !Ref DBUsername
+#              - "\"\n' >> environment"
+#              - "echo $'export DB_PASSWORD=\""
+#              - !Ref DBPassword
+#              - "\"\n' >> environment"
+#              - "echo $'export S3_BUCKET_NAME=\""
+#              - !Ref Bucket
+#              - "\"\n' >> environment"
+#              - "echo $'export DB_NAME=\""
+#              - !Ref DBName
+#              - "\"\n' >> environment"
+
+
+  CodeDeployApplication:
+    Type: "AWS::CodeDeploy::Application"
     Properties:
+      ApplicationName: !Ref AWSCodeDeployApplicationName
+      ComputePlatform: "Server"
+
+
+#  CodeDeployApplicationGroup:
+#    Type: AWS::CodeDeploy::DeploymentGroup
+#    Properties:
+#      ApplicationName: !Ref CodeDeployApplication
+#      AutoRollbackConfiguration:
+#        Events:
+#          - DEPLOYMENT_FAILURE
+#      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+#      DeploymentGroupName: !Ref AWSDeploymentGroupName
+#      DeploymentStyle:
+#        DeploymentType: IN_PLACE
+#        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+#      Ec2TagFilters:
+#        - Key: !Ref EC2Name
+#          Value: !Ref EC2Value
+#          Type: KEY_AND_VALUE
+#      ServiceRoleArn:
+#        Fn::GetAtt: [ CodeDeployServiceRole, Arn ]
+
+#######################################################
+
+
+  MyLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: asg_launch_config
+      InstanceType: t2.micro
       ImageId: !Ref CustomAMI
-      InstanceType: !Ref InstanceTypeParameter
-      KeyName: !Ref MySSHKeyName
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
       IamInstanceProfile: !Ref InstanceProfile
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          SubnetId: !Ref PublicSubnet3
-          DeleteOnTermination: true
-          GroupSet:
-            - !Ref WebappSec
-      Tags:
-        - Key: !Ref EC2Name
-          Value: !Ref EC2Value
+      SecurityGroups:
+        - Ref: WebappSec
+      KeyName:
+        Ref: MySSHKeyName
+      AssociatePublicIpAddress: true
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -577,22 +662,135 @@ Resources:
               - "echo $'export DB_NAME=\""
               - !Ref DBName
               - "\"\n' >> environment"
+    DependsOn:
+      - InstanceProfile
 
-
-  CodeDeployApplication:
-    Type: "AWS::CodeDeploy::Application"
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      ApplicationName: !Ref AWSCodeDeployApplicationName
-      ComputePlatform: "Server"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/"
+      HealthCheckPort: '8000'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 7
+      HealthyThresholdCount: 3
+      Name: TargetGroup
+      Port: 8000
+      Protocol: HTTP
+      TargetType: instance
+      UnhealthyThresholdCount: 5
+      VpcId:
+        Ref: VPC
+      Matcher:
+        HttpCode: '401'
 
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: AutoScalingGroup
+      Cooldown: '60'
+      DesiredCapacity: '2'
+      LaunchConfigurationName:
+        Ref: MyLaunchConfig
+      VPCZoneIdentifier:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+      MaxSize: '5'
+      MinSize: '2'
+      TargetGroupARNs:
+        - Ref: TargetGroup
+      Tags:
+        - Key: !Ref EC2Name
+          Value: !Ref EC2Value
+          PropagateAtLaunch: true
+    DependsOn:
+      - TargetGroup
+      - MyLaunchConfig
+
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        Ref: AutoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: '1'
+
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        Ref: AutoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: "-1"
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU usage is above 10%
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '3'
+      Threshold: '40'
+      AlarmActions:
+        - Ref: WebServerScaleUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value:
+            Ref: AutoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU usage is below 5%
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '3'
+      Threshold: '20'
+      AlarmActions:
+        - Ref: WebServerScaleDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value:
+            Ref: AutoScalingGroup
+      ComparisonOperator: LessThanThreshold
+
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: ApplicationLoadBalancer
+      Subnets:
+        - Ref: PublicSubnet2
+        - Ref: PublicSubnet3
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - Ref: WebappSec
+      IpAddressType: ipv4
 
   CodeDeployApplicationGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
-      ApplicationName: !Ref CodeDeployApplication
+      ApplicationName:
+        Ref: CodeDeployApplication
       AutoRollbackConfiguration:
         Events:
           - DEPLOYMENT_FAILURE
+      AutoScalingGroups:
+        - Ref: AutoScalingGroup
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - Name:
+              Fn::GetAtt:
+                - TargetGroup
+                - TargetGroupName
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
       DeploymentGroupName: !Ref AWSDeploymentGroupName
       DeploymentStyle:
@@ -604,3 +802,37 @@ Resources:
           Type: KEY_AND_VALUE
       ServiceRoleArn:
         Fn::GetAtt: [ CodeDeployServiceRole, Arn ]
+    DependsOn:
+      - CodeDeployApplication
+      - MyLaunchConfig
+      - AutoScalingGroup
+
+  DNSRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Ref: DomainNameValue
+      HostedZoneId:
+        Ref: HostedZoneIdValue
+      AliasTarget:
+        HostedZoneId:
+          Fn::GetAtt:
+            - ApplicationLoadBalancer
+            - CanonicalHostedZoneID
+        DNSName:
+          Fn::GetAtt:
+            - ApplicationLoadBalancer
+            - DNSName
+      Type: A
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: TargetGroup
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
