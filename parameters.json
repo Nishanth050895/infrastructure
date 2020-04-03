@@ -49,11 +49,11 @@
   },
   {
     "ParameterKey": "CustomAMI",
-    "ParameterValue": "ami-0eabfa06b20dc7c3a"
+    "ParameterValue": "ami-0bd1899c194eea701"
   },
   {
     "ParameterKey": "MyDBInstanceIdentifier",
-    "ParameterValue": "csye6225-spring2020-21"
+    "ParameterValue": "csye6225-spring2020-2"
   },
   {
     "ParameterKey": "MySSHKeyName",
