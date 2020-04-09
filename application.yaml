@@ -353,20 +353,30 @@ Resources:
       AllocatedStorage: !Ref RDSInstanceSize #
       DBInstanceClass: !Ref RDSInstanceTypeParameter
       Engine: MySQL
-      EngineVersion: 5.6
+      EngineVersion: 5.7
       MasterUsername: !Ref DBUsername
       MasterUserPassword: !Ref DBPassword
       DBSubnetGroupName: !Ref myDBSubnetGroup
       DBInstanceIdentifier: !Ref MyDBInstanceIdentifier
+      DBParameterGroupName: !Ref DBParameterGroup
       VPCSecurityGroups:
         - !Ref RDSSec
       PubliclyAccessible: !Ref RDSPublicAccess
       MultiAZ: "false"
       Port: "3306"
       StorageType: gp2
+      StorageEncrypted: "true"
       Tags:
         - Key: String
           Value: String
+
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: DB Parameter Group
+      Family: "mysql5.7"
+      Parameters:
+        performance_schema: 1
 
   Bucket: # cannot be deleted with data
     Type: 'AWS::S3::Bucket'
@@ -873,14 +883,16 @@ Resources:
   HttpListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
+      Certificates:
+        - CertificateArn: arn:aws:acm:us-east-1:537581868274:certificate/74072913-cdc3-45c2-98ad-32045f8f39aa
       DefaultActions:
         - Type: forward
           TargetGroupArn:
             Ref: TargetGroup
       LoadBalancerArn:
         Ref: ApplicationLoadBalancer
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
 
   QueueSQS:
     Type: AWS::SQS::Queue

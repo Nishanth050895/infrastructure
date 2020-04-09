@@ -53,7 +53,7 @@
   },
   {
     "ParameterKey": "MyDBInstanceIdentifier",
-    "ParameterValue": "csye6225-spring2020-2"
+    "ParameterValue": "csye6225-spring2020-9"
   },
   {
     "ParameterKey": "MySSHKeyName",
